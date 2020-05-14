@@ -27,15 +27,15 @@ def prepare_extra_data(all_variables, main_matrix):
     t_s = int((interval[0] - float(data[1, 1])) / dt)
     t_e = int((interval[1] - float(data[1, 1])) / dt)
     t = slice(t_s, t_e)
-    matrix_up = main_matrix[:8, ...]
-    matrix_low = main_matrix[8:, ...]
+    matrix_low = main_matrix[:8, ...]
+    matrix_up = main_matrix[8:, ...]
 
     return t, t_start, t_end, dt, matrix_up, matrix_low
 
 
-def luminosity_plot(up_data, low_data, t):
+def luminosity_plot(up_data, low_data, t, t_s):
     # The whole luminosity
-    grid = np.linspace(interval[0], interval[0] + dt * len(up_sum_data), len(up_sum_data))
+    grid = np.linspace(t_s, t_s + dt * len(up_sum_data), len(up_sum_data))
     sns.lineplot(grid, up_data, label='Север', linewidth=1)
     sns.lineplot(grid, low_data, label='Юг', linewidth=1)
     plt.title('Суммарная светимость')
@@ -95,7 +95,7 @@ def centroid(main_matrices):
 
 
 def centroid_and_correlation(correlations, normalized_df, index_start, index_end):
-    # index_start - beginning of time wondow
+    # index_start - beginning of time window
     # index_end - end of time window
     n = len(correlations)
     x_grid = np.linspace(interval[0], interval[0] + dt * n, n)
@@ -159,27 +159,35 @@ def projection_plot_ts(x_grid, data_values, ind_start, ind_end, t_s, dt):
 
 
 def save_images_for_video(x_grid, data_values, ind_start, ind_end, t_s, dt):
-    time_start = x_grid[ind_start]
-    time_end = x_grid[ind_end]
+    #time_start = x_grid[ind_start]   # for interval with loss of correlation
+    #time_end = x_grid[ind_end]
+    time_start = interval[0]   # for full interval
+    time_end = interval[1]
     ind_1 = int((time_start - t_s) // dt)
     ind_2 = int((time_end - t_s) // dt)
-    window_big = int(2 / dt)
+    window_big = 10
     idx_current = ind_1
     i = 0
     n = (ind_2 - ind_1) // window_big
+    max_value = np.max(data_values)
+    min_value = np.min(data_values)
+    print(max_value)
+    print(min_value)
     while idx_current < ind_2:
         fig, ax = plt.subplots(subplot_kw={'xticks': [2, 4, 6, 8, 10, 12, 14, 16],
                                            'yticks': [2, 4, 6, 8, 10, 12, 14, 16]})
-        im = ax.imshow(data_values[:, :, idx_current], origin='lower')
-        ax.set_title(f'{np.round(x_grid[ind_start] + dt * i, decimals=3)} ms')
+        data_renew = np.divide(np.subtract(data_values[:, :, idx_current], min_value), max_value - min_value)
+        im = ax.imshow(data_renew, origin='lower')
+        ax.set_title(f'{np.round(time_start + dt * i, decimals=3)} ms')
         divider = make_axes_locatable(ax)
         cax = divider.append_axes('right', size='5%', pad=0.05)
         plt.colorbar(im, cax=cax, orientation='vertical')
-        file_name = 'pictures/proj_diff' + str(idx_current) + '.png'
+        file_name = 'pictures_full/proj_diff' + str(idx_current) + '.png'
         plt.savefig(file_name, format="png")
+        #plt.show()
         plt.close(fig)
-        idx_current += 3
-        i += 3
+        idx_current += window_big
+        i += window_big
 
 
 if __name__ == '__main__':
@@ -191,7 +199,7 @@ if __name__ == '__main__':
     low_sum_data = B_low.sum(axis=(0, 1))
 
     # Plot luminosity, whole and on interval
-    luminosity_plot(up_sum_data, low_sum_data, t)
+    luminosity_plot(up_sum_data, low_sum_data, t, t_s)
     # Correlation coefficient of south and north
     correlations, x = correlation_coefficient(main_matrices)
 
